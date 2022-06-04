@@ -1,15 +1,26 @@
-import React, { useState } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, TouchableHighlight, ToastAndroid } from 'react-native'
+import React, { useState} from 'react'
+import { View, Text, StyleSheet, TouchableOpacity, TouchableHighlight, ToastAndroid, Platform } from 'react-native'
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
+import moment from 'moment';
+import * as Notifications from 'expo-notifications';
+import NetInfo from '@react-native-community/netinfo';
 
 const HomeScreen = ({ navigation }) => {
 
     const [listData, setListData] = useState([])
     const webUrl = `https://todo.stokoza.co.za/public/api`
+    const options = {
+        sameDay: '[Today]',
+        nextDay: '[Tomorrow]',
+        nextWeek: 'dddd',
+        lastDay: '[Yesterday]',
+        lastWeek: '[Last] dddd',
+        sameElse: 'DD/MM/YYYY'
+    }
 
     function byDate(a, b) {
         return new Date(a.date).valueOf() - new Date(b.date).valueOf()
@@ -30,7 +41,8 @@ const HomeScreen = ({ navigation }) => {
                             task: DataItem.task,
                             date: DataItem.date,
                             time: DataItem.time,
-                            done: DataItem.done
+                            done: DataItem.done,
+                            identifier: DataItem.identifier
                         }))
                         let newData = todoList.filter(item => item.done !== 1)
                         let sorted = newData.sort(byDate)
@@ -45,9 +57,20 @@ const HomeScreen = ({ navigation }) => {
     );
 
     const doneRow = async (id) => {
-        
+
+        NetInfo.fetch().then(state => {
+            if (!state.isConnected) {
+                ToastAndroid.show("Oops! Looks like you're not connected to the internet, please make you you have internet connection", ToastAndroid.LONG)
+                return
+            }
+        });
+
         try {
             const res = await axios.get(`${webUrl}/done/${id}`)
+            const pushIdentifierObj = listData.find(item => item.id == id)
+            if(pushIdentifierObj.identifier !== null){
+                await Notifications.cancelScheduledNotificationAsync(pushIdentifierObj.identifier);
+            }
             let newData = listData.filter(item => item.id !== id)
             let sorted = newData.sort(byDate)
             setListData(sorted)
@@ -58,13 +81,26 @@ const HomeScreen = ({ navigation }) => {
     }
 
     const deleteRow = async (id) => {
+
+        NetInfo.fetch().then(state => {
+            if (!state.isConnected) {
+                ToastAndroid.show("Oops! Looks like you're not connected to the internet, please make you you have internet connection", ToastAndroid.LONG)
+                return
+            }
+        });
+
         try {
             const res = await axios.get(`${webUrl}/destroy/${id}`)
-            let newData = listData.filter(item => item.id !== id)
-            let sorted = newData.sort(byDate)
+            const pushIdentifierObj = listData.find(item => item.id == id)
+            if(pushIdentifierObj.identifier !== null){
+                await Notifications.cancelScheduledNotificationAsync(pushIdentifierObj.identifier);
+            }
+            const newData = listData.filter(item => item.id !== id)
+            const sorted = newData.sort(byDate)
             setListData(sorted)
             ToastAndroid.show("Item removed", ToastAndroid.SHORT)
         } catch (error) {
+            ToastAndroid.show("Oops! Looks like you don't have an internet connection, please make sure you are connected", ToastAndroid.SHORT)
             console.log(error.response.data)
         }
     }
@@ -76,7 +112,7 @@ const HomeScreen = ({ navigation }) => {
                 <TouchableHighlight style={styles.rowFrontVisible}>
                     <View>
                         <Text style={styles.title} >{data.item.task}</Text>
-                        <Text style={styles.details}>Due: {data.item.date == 'null' ? 'No date' : data.item.date} {data.item.time == 'null' ? '' : data.item.time}</Text>
+                        <Text style={styles.details}>Due: {data.item.date == 'null' ? 'No date' : moment(data.item.date).calendar(options)} {data.item.time == 'null' ? '' : 'at ' + data.item.time}</Text>
                     </View>
                 </TouchableHighlight>
             </View>
@@ -134,9 +170,10 @@ const HomeScreen = ({ navigation }) => {
                 ListEmptyComponent={empty}
             />
 
-            <TouchableOpacity style={styles.floatingActionBtn} onPress={() => navigation.navigate("AddTask")}>
+            <TouchableOpacity style={styles.floatingActionBtn} onPress={() => navigation.navigate('AddTask')}>
                 <FontAwesome5 name="plus" size={25} color="#fff" />
             </TouchableOpacity>
+
         </View>
     )
 }

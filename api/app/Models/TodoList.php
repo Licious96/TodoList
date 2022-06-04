@@ -13,6 +13,7 @@ class TodoList extends Model
         'userId',
         'date',
         'time',
-        'done'
+        'done',
+        'identifier'
     ];
 }

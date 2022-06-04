@@ -5,11 +5,23 @@ import { SwipeListView } from 'react-native-swipe-list-view';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
+import moment from 'moment';
+import * as Notifications from 'expo-notifications';
+import NetInfo from '@react-native-community/netinfo';
+import { AdMobBanner } from 'expo-ads-admob';
 
 const HomeScreen = ({navigation}) => {
 
     const [listData, setListData] = useState([])
     const webUrl = `https://todo.stokoza.co.za/public/api`
+    const options = {
+        sameDay: '[Today]',
+        nextDay: '[Tomorrow]',
+        nextWeek: 'dddd',
+        lastDay: '[Yesterday]',
+        lastWeek: '[Last] dddd',
+        sameElse: 'DD/MM/YYYY'
+    }
 
     function byDate(a, b) {
         return new Date(a.date).valueOf() - new Date(b.date).valueOf()
@@ -30,7 +42,8 @@ const HomeScreen = ({navigation}) => {
                             task: DataItem.task,
                             date: DataItem.date,
                             time: DataItem.time,
-                            done: DataItem.done
+                            done: DataItem.done,
+                            identifier: DataItem.identifier
                         }))
                         let newData = todoList.filter(item => item.done !== 0)
                         let sorted = newData.sort(byDate)
@@ -39,53 +52,66 @@ const HomeScreen = ({navigation}) => {
                         console.log(error.response.data)
                     }
                 }
-                // if (objVar) {
-                //     const parsedObj = JSON.parse(objVar);
-                // const todoList = parsedObj.map((DataItem, index) => ({
-                //     key: `${index}`,
-                //     id: DataItem.id,
-                //     task: DataItem.task,
-                //     date: DataItem.date,
-                //     time: DataItem.time,
-                //     done: DataItem.done
-                // }))
-
-                //     let newData = todoList.filter(item => item.done !== 1)
-                //     let sorted = newData.sort(byDate)
-                //     setListData(sorted)
-                // }
-
             };
             fetchUser();
         }, [])
     );
 
     const cancelRow = async (id) => {
-        
+
+        NetInfo.fetch().then(state => {
+            if (!state.isConnected) {
+                ToastAndroid.show("Oops! Looks like you're not connected to the internet, please make you you have internet connection", ToastAndroid.LONG)
+                return
+            }
+        });
+
         try {
             const res = await axios.get(`${webUrl}/done/${id}`)
             let newData = listData.filter(item => item.id !== id)
             let sorted = newData.sort(byDate)
             setListData(sorted)
             ToastAndroid.show("Item moved to Todo List", ToastAndroid.SHORT)
-        } catch (error) {
-            console.log(error.response.data)
-        }
-        
-        // const objVar = await AsyncStorage.getItem('@userId');
-        // const parsedObj = JSON.parse(objVar);
-        // const newObj = parsedObj.map(obj =>
-        //     obj.id === id ? { ...obj, done: 1 } : obj
-        // )
 
-        // let newData = newObj.filter(item => item.done !== 1)
-        // await AsyncStorage.setItem('@obj', JSON.stringify(newObj))
-        // let sorted = newData.sort(byDate)
-        // setListData(sorted)
-        // ToastAndroid.show("Item marked as completed", ToastAndroid.SHORT)
+            const currentDate = new Date().getFullYear() + "-" + ("0"+(new Date().getMonth()+1)).slice(-2) + "-" + ("0"+new Date().getDate()).slice(-2)
+            const currentTime = new Date().toLocaleTimeString()
+            const currentDateTime = currentDate+"T"+currentTime+".000Z"
+            const date1 = new Date(currentDateTime)
+            const currentSeconds = date1.getTime() / 1000
+            const notificationObj = listData.find(item => item.id == id)
+            if (notificationObj.date !== 'null') {
+                const datum = notificationObj.date+"T"+notificationObj.time+":00.000Z"
+                const date2 = new Date(datum);
+                const seconds = date2.getTime() / 1000; //1440516958
+                const timeInSeconds = seconds - currentSeconds
+                const pushNotification = await Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: "Hey, it's time",
+                        body: notificationObj.task,
+                        data: {
+                            data: 'TodoList App'
+                        }
+                    },
+                    trigger: {
+                        seconds: timeInSeconds,
+                    }
+                })
+            }
+            
+        } catch (error) {
+            console.log(error)
+        }
     }
 
     const deleteRow = async (id) => {
+
+        NetInfo.fetch().then(state => {
+            if (!state.isConnected) {
+                ToastAndroid.show("Oops! Looks like you're not connected to the internet, please make you you have internet connection", ToastAndroid.LONG)
+                return
+            }
+        });
+
         try {
             const res = await axios.get(`${webUrl}/destroy/${id}`)
             let newData = listData.filter(item => item.id !== id)
@@ -93,16 +119,8 @@ const HomeScreen = ({navigation}) => {
             setListData(sorted)
             ToastAndroid.show("Item removed", ToastAndroid.SHORT)
         } catch (error) {
-            console.log(error.response.data)
+            console.log(error)
         }
-        // let objVar = await AsyncStorage.getItem('@obj');
-        // let parsedObj = JSON.parse(objVar);
-        // let newData = parsedObj.filter(item => item.id !== id)
-        // await AsyncStorage.setItem('@obj', JSON.stringify(newData))
-        // let newObj = newData.filter(item => item.done !== 1)
-        // let sorted = newObj.sort(byDate)
-        // setListData(sorted)
-        // ToastAndroid.show("Item removed", ToastAndroid.SHORT)
     }
 
     const VisibleItem = props => {
@@ -112,7 +130,7 @@ const HomeScreen = ({navigation}) => {
                 <TouchableHighlight style={styles.rowFrontVisible}>
                     <View>
                         <Text style={styles.title} >{data.item.task}</Text>
-                        <Text style={styles.details}>Due: {data.item.date == 'null' ? 'No date' : data.item.date} {data.item.time == 'null' ? '' : data.item.time}</Text>
+                        <Text style={styles.details}>Due: {data.item.date == 'null' ? 'No date' : moment(data.item.date).calendar(options)} {data.item.time == 'null' ? '' : 'at ' + data.item.time}</Text>
                     </View>
                 </TouchableHighlight>
             </View>
@@ -168,6 +186,11 @@ const HomeScreen = ({navigation}) => {
                 leftOpenValue={75}
                 rightOpenValue={-75}
                 ListEmptyComponent={empty}
+            />
+            <AdMobBanner
+                bannerSize="fullBanner"
+                adUnitID="ca-app-pub-3940256099942544/6300978111" // Test ID, Replace with your-admob-unit-id
+                servePersonalizedAds // true or false
             />
         </View>
     )

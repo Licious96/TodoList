@@ -20,6 +20,7 @@ class CreateTodoListsTable extends Migration
             $table->boolean('done')->default(0);
             $table->string('date')->nullable();
             $table->string('time')->nullable();
+            $table->string('identifier')->nullable();
             $table->timestamps();
         });
     }

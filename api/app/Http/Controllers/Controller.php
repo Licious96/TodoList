@@ -32,7 +32,8 @@ class Controller extends BaseController
             'userId' => $request->userId,
             'task' => $request->task,
             'date' => $request->date,
-            'time' => $request->time
+            'time' => $request->time,
+            'identifier' => $request->identifier
         ]);
 
         return response()->json($newTask, 201);
