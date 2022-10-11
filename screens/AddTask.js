@@ -195,7 +195,7 @@ const AddTask = ({navigation, route}) => {
             <AdMobBanner
                     style={{position: 'absolute', bottom: 0}}
                     bannerSize="fullBanner"
-                    adUnitID="ca-app-pub-3940256099942544/6300978111" // Test ID, Replace with your-admob-unit-id
+                    adUnitID="ca-app-pub-3106841701777643/6086809582" // Test ID, Replace with your-admob-unit-id
                     servePersonalizedAds // true or false
             />
        </View>

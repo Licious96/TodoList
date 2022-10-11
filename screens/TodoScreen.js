@@ -8,6 +8,7 @@ import axios from 'axios';
 import moment from 'moment';
 import * as Notifications from 'expo-notifications';
 import NetInfo from '@react-native-community/netinfo';
+import { AdMobBanner } from 'expo-ads-admob';
 
 const HomeScreen = ({ navigation }) => {
 
@@ -173,6 +174,12 @@ const HomeScreen = ({ navigation }) => {
             <TouchableOpacity style={styles.floatingActionBtn} onPress={() => navigation.navigate('AddTask')}>
                 <FontAwesome5 name="plus" size={25} color="#fff" />
             </TouchableOpacity>
+
+            <AdMobBanner
+                bannerSize="fullBanner"
+                adUnitID="ca-app-pub-3106841701777643/6086809582" // Test ID, ca-app-pub-3940256099942544/6300978111
+                servePersonalizedAds // true or false
+            />
 
         </View>
     )
